@@ -1,25 +1,25 @@
 {
 	"schema_version": 1,
 	"quilt_loader": {
-		"group": "com.example",
-		"id": "example_mod",
+		"group": "de.mariocake",
+		"id": "cakecable",
 		"version": "${version}",
 		"metadata": {
-			"name": "Mod Name",
-			"description": "A short description of your mod.",
+			"name": "Cake Cable",
+			"description": "A feature rich and easy to use cable mod.",
 			"contributors": {
-				"Your name here": "Owner"
+				"MarioCake": "Owner"
 			},
 			"contact": {
-				"homepage": "https://example.com/",
-				"issues": "https://github.com/QuiltMC/quilt-template-mod/issues",
-				"sources": "https://github.com/QuiltMC/quilt-template-mod"
+				"homepage": "https://github.com/MarioCakeDev/cake-cable",
+				"issues": "https://github.com/MarioCakeDev/cake-cable/issues",
+				"sources": "https://github.com/MarioCakeDev/cake-cable"
 			},
-			"icon": "assets/example_mod/icon.png"
+			"icon": "assets/cakecable/icon.png"
 		},
 		"intermediate_mappings": "net.fabricmc:intermediary",
 		"entrypoints": {
-			"init": "com.example.example_mod.ExampleMod"
+			"init": "de.mariocake.cakecable.CakeCableMod"
 		},
 		"depends": [
 			{
@@ -36,5 +36,5 @@
 			}
 		]
 	},
-	"mixin": "example_mod.mixins.json"
+	"mixin": []
 }

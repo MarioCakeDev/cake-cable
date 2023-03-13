@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "cakecable:block/cable_block"
+    }
+  }
+}
