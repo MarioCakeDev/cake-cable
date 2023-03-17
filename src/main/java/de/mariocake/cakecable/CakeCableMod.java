@@ -8,7 +8,6 @@ import net.minecraft.block.Material;
 import net.minecraft.item.*;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
-import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.quiltmc.loader.api.ModContainer;
 import org.quiltmc.qsl.base.api.entrypoint.ModInitializer;
@@ -30,7 +29,6 @@ public class CakeCableMod implements ModInitializer {
 
 	private static final ItemGroup CAKECABLE_ITEMGROUP = FabricItemGroup.builder(new Identifier("cakecable", "general"))
 			.icon(() -> new ItemStack(CABLE_BLOCK))
-			.name(Text.of("CakeCable"))
 			.build();
 
 	@Override
