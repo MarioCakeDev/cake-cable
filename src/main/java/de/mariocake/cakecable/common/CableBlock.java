@@ -34,10 +34,10 @@ public class CableBlock extends Block {
 	public static final BooleanProperty UP = BooleanProperty.of("up");
 	public static final BooleanProperty DOWN = BooleanProperty.of("down");
 
-	private static HashMap<BooleanProperty, VoxelShape> connectionShapes = new HashMap<>();
+	private static final HashMap<BooleanProperty, VoxelShape> connectionShapes = new HashMap<>();
 
 	public static final Identifier IDENTIFIER = CakeCableMod.Identifier("cable_block");
-	private static VoxelShape baseShape;
+	private static final VoxelShape baseShape;
 
 	public CableBlock(Settings settings) {
 		super(settings);

@@ -1,7 +1,42 @@
 {
-  "variants": {
-    "": {
-      "model": "cakecable:block/cable_block"
+  "multipart": [
+    {
+      "apply": {"model": "cakecable:block/cable_block"}
+    }, {
+      "when": {
+        "north": true
+      },
+      "apply": {"model": "cakecable:block/cable_block_multipart"}
+    },
+    {
+      "when": {
+        "east": true
+      },
+      "apply": {"model": "cakecable:block/cable_block_multipart", "y": 90}
+    },
+    {
+      "when": {
+        "south": true
+      },
+      "apply": {"model": "cakecable:block/cable_block_multipart", "x": 180}
+    },
+    {
+      "when": {
+        "west": true
+      },
+      "apply": {"model": "cakecable:block/cable_block_multipart", "y": 270}
+    },
+    {
+      "when": {
+        "up": true
+      },
+      "apply": {"model": "cakecable:block/cable_block_multipart", "x": 270}
+    },
+    {
+      "when": {
+        "down": true
+      },
+      "apply": {"model": "cakecable:block/cable_block_multipart", "x": 90}
     }
-  }
+  ]
 }
