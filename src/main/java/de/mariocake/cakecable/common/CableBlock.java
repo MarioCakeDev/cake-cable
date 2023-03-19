@@ -2,6 +2,7 @@ package de.mariocake.cakecable.common;
 
 import de.mariocake.cakecable.CakeCableMod;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.entity.LivingEntity;
