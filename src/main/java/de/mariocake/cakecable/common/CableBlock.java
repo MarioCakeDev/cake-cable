@@ -5,6 +5,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -17,23 +18,26 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
-public class CableBlock extends Block {
+public class CableBlock extends Block implements BlockEntityProvider {
 	public static final BooleanProperty NORTH = BooleanProperty.of("north");
 	public static final BooleanProperty EAST = BooleanProperty.of("east");
 	public static final BooleanProperty SOUTH = BooleanProperty.of("south");
 	public static final BooleanProperty WEST = BooleanProperty.of("west");
 	public static final BooleanProperty UP = BooleanProperty.of("up");
 	public static final BooleanProperty DOWN = BooleanProperty.of("down");
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(CableBlock.class);
 
 	private static final HashMap<BooleanProperty, VoxelShape> connectionShapes = new HashMap<>();
 
@@ -58,13 +62,55 @@ public class CableBlock extends Block {
 		super.appendProperties(builder);
 	}
 
-
-
 	@Override
 	public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
 		updateConnections(state, world, pos);
 
+		CableEntity cableEntity = (CableEntity)world.getBlockEntity(pos);
+
+		addToNetworkAndMergeAdjacentNetworks(world, pos, cableEntity);
+
+		CableNetwork network = Objects.requireNonNull(cableEntity).getNetwork();
+
+		Objects.requireNonNull(placer).sendSystemMessage(Text.of("Network size: " + network.cables.size()));
+
 		world.updateNeighbors(pos, this);
+	}
+
+	private void addToNetworkAndMergeAdjacentNetworks(World world, BlockPos pos, CableEntity cableEntity) {
+		Set<CableNetwork> networks = getAdjacentCableNetworks(world, pos);
+		switch (networks.size()) {
+			case 0 -> {
+				CableNetwork network = new CableNetwork();
+				network.addCable(cableEntity);
+			}
+			case 1 -> {
+				CableNetwork network = networks.iterator().next();
+				network.addCable(cableEntity);
+			}
+			default -> {
+				CableNetwork network = new CableNetwork();
+				network.addCable(cableEntity);
+				for (CableNetwork cableNetwork : networks) {
+					network.merge(cableNetwork);
+				}
+			}
+		}
+	}
+
+	private Set<CableNetwork> getAdjacentCableNetworks(World world, BlockPos pos) {
+		Set<CableNetwork> networks = new HashSet<>();
+
+		Direction[] directions = Direction.values();
+		for (Direction direction : directions) {
+			BlockPos neighborPos = pos.offset(direction);
+			BlockEntity blockEntity = world.getBlockEntity(neighborPos);
+			if (blockEntity instanceof CableEntity cableEntity) {
+				networks.add(cableEntity.getNetwork());
+			}
+		}
+
+		return networks;
 	}
 
 	@Override
@@ -94,23 +140,84 @@ public class CableBlock extends Block {
 
 	@Override
 	public void onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
-		// teleport player in a random direction, before teleporting we need to check if the player will not be stuck in a block
+		player.playSound(SoundEvents.ENTITY_ENDERMAN_TELEPORT, 1.0F, 1.0F);
 
-		boolean isStuck = true;
-		do{
-			double x = player.getX() + world.random.nextInt(10) - 5;
-			double y = player.getY() + world.random.nextInt(10) - 5;
-			double z = player.getZ() + world.random.nextInt(10) - 5;
-
-			if(world.getBlockState(new BlockPos(x, y, z)).isAir() && world.getBlockState(new BlockPos(x, y + 1, z)).isAir()){
-				//player.teleport(x, y, z);
-				player.playSound(SoundEvents.ENTITY_ENDERMAN_TELEPORT, 1.0F, 1.0F);
-				isStuck = false;
-			}
-		}while (isStuck);
 		super.onBreak(world, pos, state, player);
 
 		world.updateNeighbors(pos, this);
+
+		CableEntity cableEntity = (CableEntity)world.getBlockEntity(pos);
+		CableNetwork network = Objects.requireNonNull(cableEntity).getNetwork();
+		network.removeCable(cableEntity);
+
+		CableNetwork[] networks = splitNetworks(world, pos, network);
+		for(int i = 0; i < networks.length; i++) {
+			CableNetwork cableNetwork = networks[i];
+			player.sendSystemMessage(Text.of("Network " + i + " size: " + cableNetwork.cables.size()));
+		}
+	}
+
+	private CableNetwork[] splitNetworks(World world, BlockPos pos, CableNetwork network) {
+		List<Set<CableEntity>> cablesInNetworks = new ArrayList<>();
+		CableEntity[] cables = getAdjacentCables(world, pos);
+		for (CableEntity cable : cables) {
+			if(cablesInNetworks.stream().anyMatch(cablesInNetwork -> cablesInNetwork.contains(cable))) {
+				continue;
+			}
+
+			Set<CableEntity> cablesInNetwork = new HashSet<>();
+			addAdjacentCablesToNetwork(world, pos, cable, cablesInNetwork);
+			cablesInNetworks.add(cablesInNetwork);
+		}
+
+		if(cablesInNetworks.size() == 1) {
+			return new CableNetwork[] { network };
+		}
+
+		network.cables.clear();
+
+		return cablesInNetworks.stream().map(cablesInNetwork -> {
+			CableNetwork newNetwork = new CableNetwork();
+			cablesInNetwork.forEach(newNetwork::addCable);
+			return newNetwork;
+		}).toArray(CableNetwork[]::new);
+	}
+
+	private void addAdjacentCablesToNetwork(World world, BlockPos excludedPos, CableEntity cable, Set<CableEntity> cablesInNetwork) {
+		if(cablesInNetwork.contains(cable)) {
+			return;
+		}
+
+		cablesInNetwork.add(cable);
+
+		CableEntity[] adjacentCables = getAdjacentCables(world, cable.getPos(), excludedPos);
+		for (CableEntity adjacentCable : adjacentCables) {
+			addAdjacentCablesToNetwork(world, excludedPos, adjacentCable, cablesInNetwork);
+		}
+	}
+
+	private CableEntity[] getAdjacentCables(World world, BlockPos pos) {
+		return getAdjacentCables(world, pos, null);
+	}
+
+	private CableEntity[] getAdjacentCables(World world, BlockPos pos, BlockPos excludedPos) {
+		List<CableEntity> cables = new ArrayList<>();
+
+		Direction[] directions = Direction.values();
+		for (Direction direction : directions) {
+			BlockPos neighborPos = pos.offset(direction);
+
+			if(neighborPos.equals(excludedPos)) {
+				continue;
+			}
+
+			BlockEntity blockEntity = world.getBlockEntity(neighborPos);
+			if (blockEntity instanceof CableEntity cableEntity) {
+				cables.add(cableEntity);
+			}
+		}
+
+		return cables.toArray(new CableEntity[0]);
 	}
 
 	static {
@@ -142,5 +249,11 @@ public class CableBlock extends Block {
 		}
 
 		return VoxelShapes.union(baseShape, shapesToCombine.toArray(VoxelShape[]::new));
+	}
+
+	@Nullable
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new CableEntity(pos, state);
 	}
 }
