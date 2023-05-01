@@ -13,10 +13,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
@@ -92,8 +89,9 @@ public class CableBlock extends Block implements BlockEntityProvider {
 				CableNetwork network = new CableNetwork();
 				network.addCable(cableEntity);
 				for (CableNetwork cableNetwork : networks) {
-					network.merge(cableNetwork);
+					network.mergeFrom(cableNetwork, cableEntity.getPos());
 				}
+				network.reconnectFromRoot();
 			}
 		}
 	}
@@ -130,15 +128,6 @@ public class CableBlock extends Block implements BlockEntityProvider {
 	}
 
 	@Override
-	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-		if (!world.isClient) {
-			player.sendMessage(Text.of("Hello, world!"), false);
-		}
-
-		return ActionResult.SUCCESS;
-	}
-
-	@Override
 	public void onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
 		player.playSound(SoundEvents.ENTITY_ENDERMAN_TELEPORT, 1.0F, 1.0F);
 
@@ -148,76 +137,12 @@ public class CableBlock extends Block implements BlockEntityProvider {
 
 		CableEntity cableEntity = (CableEntity)world.getBlockEntity(pos);
 		CableNetwork network = Objects.requireNonNull(cableEntity).getNetwork();
-		network.removeCable(cableEntity);
 
-		CableNetwork[] networks = splitNetworks(world, pos, network);
+		CableNetwork[] networks = network.split(pos);
 		for(int i = 0; i < networks.length; i++) {
 			CableNetwork cableNetwork = networks[i];
 			player.sendSystemMessage(Text.of("Network " + i + " size: " + cableNetwork.cables.size()));
 		}
-	}
-
-	private CableNetwork[] splitNetworks(World world, BlockPos pos, CableNetwork network) {
-		List<Set<CableEntity>> cablesInNetworks = new ArrayList<>();
-		CableEntity[] cables = getAdjacentCables(world, pos);
-		for (CableEntity cable : cables) {
-			if(cablesInNetworks.stream().anyMatch(cablesInNetwork -> cablesInNetwork.contains(cable))) {
-				continue;
-			}
-
-			Set<CableEntity> cablesInNetwork = new HashSet<>();
-			addAdjacentCablesToNetwork(world, pos, cable, cablesInNetwork);
-			cablesInNetworks.add(cablesInNetwork);
-		}
-
-		if(cablesInNetworks.size() == 1) {
-			return new CableNetwork[] { network };
-		}
-
-		network.cables.clear();
-
-		return cablesInNetworks.stream().map(cablesInNetwork -> {
-			CableNetwork newNetwork = new CableNetwork();
-			cablesInNetwork.forEach(newNetwork::addCable);
-			return newNetwork;
-		}).toArray(CableNetwork[]::new);
-	}
-
-	private void addAdjacentCablesToNetwork(World world, BlockPos excludedPos, CableEntity cable, Set<CableEntity> cablesInNetwork) {
-		if(cablesInNetwork.contains(cable)) {
-			return;
-		}
-
-		cablesInNetwork.add(cable);
-
-		CableEntity[] adjacentCables = getAdjacentCables(world, cable.getPos(), excludedPos);
-		for (CableEntity adjacentCable : adjacentCables) {
-			addAdjacentCablesToNetwork(world, excludedPos, adjacentCable, cablesInNetwork);
-		}
-	}
-
-	private CableEntity[] getAdjacentCables(World world, BlockPos pos) {
-		return getAdjacentCables(world, pos, null);
-	}
-
-	private CableEntity[] getAdjacentCables(World world, BlockPos pos, BlockPos excludedPos) {
-		List<CableEntity> cables = new ArrayList<>();
-
-		Direction[] directions = Direction.values();
-		for (Direction direction : directions) {
-			BlockPos neighborPos = pos.offset(direction);
-
-			if(neighborPos.equals(excludedPos)) {
-				continue;
-			}
-
-			BlockEntity blockEntity = world.getBlockEntity(neighborPos);
-			if (blockEntity instanceof CableEntity cableEntity) {
-				cables.add(cableEntity);
-			}
-		}
-
-		return cables.toArray(new CableEntity[0]);
 	}
 
 	static {
