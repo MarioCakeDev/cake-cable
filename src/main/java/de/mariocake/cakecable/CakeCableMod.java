@@ -38,8 +38,6 @@ public class CakeCableMod implements ModInitializer {
 
 	@Override
 	public void onInitialize(ModContainer mod) {
-		mod.metadata().id();
-
 		BlockItem BLOCK_ITEM = new BlockItem(CABLE_BLOCK, new QuiltItemSettings().maxCount(64));
 
 		ItemGroupEvents.modifyEntriesEvent(CAKECABLE_ITEMGROUP).register(content -> {

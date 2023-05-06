@@ -6,6 +6,8 @@ import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -43,6 +45,7 @@ public class CableBlock extends Block implements BlockEntityProvider {
 
 	public CableBlock(Settings settings) {
 		super(settings);
+
 		setDefaultState(getStateManager().getDefaultState()
 				.with(NORTH, false)
 				.with(EAST, false)
@@ -51,6 +54,25 @@ public class CableBlock extends Block implements BlockEntityProvider {
 				.with(UP, false)
 				.with(DOWN, false)
 		);
+	}
+
+	@Nullable
+	@Override
+	public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+		if (type != CakeCableMod.CABLE_ENTITY) {
+			return null;
+		}
+
+		return (serverWorld, pos, blockState, blockEntity) -> {
+			if (!(blockEntity instanceof CableEntity cableEntity)) {
+				throw new IllegalStateException("CableBlock's BlockEntityTicker was called with a non-CableEntity BlockEntity");
+			}
+
+			if(cableEntity.getNetwork() == null){
+				CableNetwork.initializeNetwork(cableEntity);
+			}
+
+		};
 	}
 
 	@Override
@@ -111,6 +133,7 @@ public class CableBlock extends Block implements BlockEntityProvider {
 		return networks;
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public void neighborUpdate(BlockState state, World world, BlockPos pos, Block block, BlockPos fromPos, boolean notify) {
 		updateConnections(state, world, pos);
@@ -126,6 +149,7 @@ public class CableBlock extends Block implements BlockEntityProvider {
 
 		world.setBlockState(pos, state);
 	}
+
 
 	@Override
 	public void onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {

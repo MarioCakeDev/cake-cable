@@ -2,6 +2,7 @@ package de.mariocake.cakecable.common;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 import java.util.*;
 
@@ -11,6 +12,38 @@ public class CableNetwork {
 
 	CableNode root;
 	Dictionary<BlockPos, CableNode> cables;
+
+	public static void initializeNetwork(CableEntity cableEntity) {
+		if(cableEntity.getNetwork() != null){
+			throw new IllegalArgumentException("CableEntity already has a network");
+		}
+
+		CableNetwork network = new CableNetwork();
+		CableNetwork.initializeNetwork(cableEntity, Objects.requireNonNull(cableEntity.getWorld()), network);
+		network.reconnectFromRoot();
+	}
+
+	private static void initializeNetwork(CableEntity cableEntity, World world, CableNetwork network){
+		network.addCable(cableEntity);
+
+		BlockPos pos = cableEntity.getPos();
+
+		for (Direction direction : Direction.values()) {
+			BlockPos blockPositionToCheck = pos.offset(direction);
+			if (!(world.getBlockEntity(blockPositionToCheck) instanceof CableEntity cableEntityToCheck)) {
+				continue;
+			}
+
+			if(cableEntityToCheck.getNetwork() == null){
+				CableNetwork.initializeNetwork(cableEntityToCheck, cableEntity.getWorld(), network);
+				continue;
+			}
+
+			if (cableEntityToCheck.getNetwork() != network) {
+				network.mergeFrom(cableEntityToCheck.getNetwork(), pos);
+			}
+		}
+	}
 
 	@Override
 	public boolean equals(Object other) {
@@ -127,6 +160,7 @@ public class CableNetwork {
 		var iterable = new CableNodeDepthFirstIterable(root);
 		for (CableNode node : iterable) {
 			cables.put(node.cableEntity.getPos(), node);
+			node.cableEntity.setNetwork(this);
 		}
 	}
 

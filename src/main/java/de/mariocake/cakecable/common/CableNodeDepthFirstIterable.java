@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public class CableNodeDepthFirstIterable implements CableNodeIterable {
+public class CableNodeDepthFirstIterable implements ICableNodeIterable {
 	private final CableNode root;
 
 	private Direction[] directionOrder = getDefaultDirectionOrder();
